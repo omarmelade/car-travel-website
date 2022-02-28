@@ -41,51 +41,50 @@ function calcTravelTime() {
   })
 }
 
-function calculateTravel()
-{
+function calculateTravel() {
   let cap = document.querySelector("#cap").textContent
   let cons = document.querySelector("#cons").textContent
 
-  if(isNaN(cap) || isNaN(cons))
-  { return; }
+  if (isNaN(cap) || isNaN(cons)) { return; }
 
   console.log("calculation");
 }
 
 
 // Adresses suggestion
-function isEmptyOrSpaces(str){
+function isEmptyOrSpaces(str) {
   return str === null || str.match(/^ *$/) !== null;
 }
 
 function removeAllChildNodes(parent) {
   while (parent.firstChild) {
-      parent.removeChild(parent.firstChild);
+    parent.removeChild(parent.firstChild);
   }
 }
 
-function fillDropDown(obj, dropdown, id)
-{
-  let inputT = id == 'sugg-addrS' ? 'travelS' : 'travelE';
-  let dropdownID = id == 'sugg-addrS' ? 'dropdownStartTrav' : 'dropdownEndTrav';
+function fillDropDown(obj, dropdown, id) {
+  let isStart = id == 'sugg-addrS' ? true : false;
+  let inputT = isStart ? 'travelS' : 'travelE';
+  let dropdownID = isStart ? 'dropdownStartTrav' : 'dropdownEndTrav';
 
   for (const o of obj.features) {
+    console.log(o);
     const a = document.createElement('a');
     a.className = 'dropdown-item';
     a.innerText = o.properties.label;
-    a.onclick = function() { document.querySelector("#" + inputT).value = o.properties.label; disableDrpDown(dropdownID);};
+    a.onclick = function () { document.querySelector("#" + inputT).value = o.properties.label; disableDrpDown(dropdownID); setPoint(isStart, o.geometry.coordinates) };
     dropdown.appendChild(a);
   }
 }
 
 function adressDCall(value, id) {
-  if(value == "")
-  { return; 
+  if (value == "") {
+    return;
   }
 
-  let d = document.querySelector("#"+id);
+  let d = document.querySelector("#" + id);
   removeAllChildNodes(d);
-  socket.emit("fetchAdresses", {value, id});
+  socket.emit("fetchAdresses", { value, id });
 }
 
 socket.on("getAdresses", (args) => {
@@ -95,7 +94,7 @@ socket.on("getAdresses", (args) => {
 
 // events 
 
-document.addEventListener('click', function(event) {
+document.addEventListener('click', function (event) {
   let d = document.querySelector("#dropdownStartTrav");
   let d2 = document.querySelector("#dropdownEndTrav");
 
@@ -122,55 +121,73 @@ function disableDrpDown(id) {
 
 
 // MAP BOX
-
 mapboxgl.accessToken = 'pk.eyJ1Ijoib21hcm1lbGFkZSIsImEiOiJjbDA1Y2VwcGgwbTZqM2lvZ29hb2Z5bnQyIn0.7xgDshu34UXqWHyso-VBmw';
 
 const map = new mapboxgl.Map({
   container: 'map', // container ID
   style: 'mapbox://styles/mapbox/streets-v11', // style URL
-  center: [2.3522219, 48.856614], // starting position [lng, lat]
-  zoom: 5 // starting zoom
+  center: [5.859076, 45.649392], // starting position [lng, lat]
+  zoom: 12 // starting zoom
 });
 
-const start = [5.859076, 45.649392];
-// make an initial directions request that
-// starts and ends at the same location
-map.on('load', () => {
-  // make an initial directions request that
-  // starts and ends at the same location
-  getRoute(start);
+let start = null;
+let end = null;
+let endBool = false;
 
-  // Add starting point to the map
-  map.addLayer({
-    id: 'point',
-    type: 'circle',
-    source: {
-      type: 'geojson',
-      data: {
-        type: 'FeatureCollection',
-        features: [
-          {
-            type: 'Feature',
-            properties: {},
-            geometry: {
-              type: 'Point',
-              coordinates: start
-            }
-          }
-        ]
-      }
-    },
-    paint: {
-      'circle-radius': 10,
-      'circle-color': '#3887be'
-    }
-  });
-  // this is where the code from the next step will go
-});
+function setPoint(isStart, coords) {
+  if (isStart) {
+    start = coords;
+    addPointToMap('start', start, false)
+  } else {
+    end = coords;
+    addPointToMap('end', end, true)
+  }
+  if (end != null && start != null) {
+    getRoute(end);
+  }
+}
+
 
 map.on('click', (event) => {
+
   const coords = Object.keys(event.lngLat).map((key) => event.lngLat[key]);
-  const end = {
+  let layer = 'start';
+  if (endBool) {
+    layer = 'end';
+  }
+
+  if (!endBool) {
+    start = coords;
+  }
+
+  addPointToMap(layer, coords, endBool);
+  console.log({ 'lon':coords[0], 'lat':coords[0], endBool });
+  socket.emit("fetchLatLon", { 'lon':coords[0], 'lat':coords[1], 'isStart':!endBool });
+
+  getRoute(coords);
+  endBool = !endBool;
+});
+
+socket.on('getLatLon', (args) => {
+  let id = args['isStart'] ? '#travelS' : '#travelE'
+  console.log(args);
+  document.querySelector(id).value = args['val'].features[0].properties.label;
+})
+
+// function initMap() {
+//   socket.emit("fetchBorns");
+
+//   socket.on("getBorns", (obj) => {
+//     putMarks(obj);
+//     console.log(obj['records']);
+
+//   })
+// }
+
+
+function addPointToMap(layer, coords, endBool) {
+
+  const point = {
     type: 'FeatureCollection',
     features: [
       {
@@ -183,11 +200,12 @@ map.on('click', (event) => {
       }
     ]
   };
-  if (map.getLayer('end')) {
-    map.getSource('end').setData(end);
+
+  if (map.getLayer(layer)) {
+    map.getSource(layer).setData(point);
   } else {
     map.addLayer({
-      id: 'end',
+      id: layer,
       type: 'circle',
       source: {
         type: 'geojson',
@@ -207,38 +225,10 @@ map.on('click', (event) => {
       },
       paint: {
         'circle-radius': 10,
-        'circle-color': '#f30'
+        'circle-color': endBool ? '#f30' : '#09f'
       }
     });
   }
-  getRoute(coords);
-
-});
-
-// function initMap() {
-//   socket.emit("fetchBorns");
-
-//   socket.on("getBorns", (obj) => {
-//     putMarks(obj);
-//     console.log(obj['records']);
-
-//   })
-// }
-
-// on map click event
-// map.on('click', (e) => {
-//   const coordinates = e.lngLat;
-//   addMarkAtCoord(coordinates)
-// });
-
-function addMarkAtCoord(coordinates)
-{
-  const el = document.createElement('div');
-  el.className = 'marker-dest';
-
-  new mapboxgl.Marker(el)
-    .setLngLat(coordinates)
-    .addTo(map);
 }
 
 
@@ -248,9 +238,10 @@ async function getRoute(end) {
   // an arbitrary start will always be the same
   // only the end or destination will change
   const query = await fetch(
-    `https://api.mapbox.com/directions/v5/mapbox/cycling/${start[0]},${start[1]};${end[0]},${end[1]}?steps=true&geometries=geojson&access_token=${mapboxgl.accessToken}`,
+    `https://api.mapbox.com/directions/v5/mapbox/driving/${start[0]},${start[1]};${end[0]},${end[1]}?steps=true&geometries=geojson&access_token=${mapboxgl.accessToken}`,
     { method: 'GET' }
   );
+
   const json = await query.json();
   const data = json.routes[0];
   const route = data.geometry.coordinates;
@@ -287,7 +278,6 @@ async function getRoute(end) {
       }
     });
   }
-  // add turn instructions here at the end
 }
 
 

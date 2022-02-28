@@ -90,20 +90,26 @@ io.on('connection', (socket) => {
 
     // Borns
     socket.on("fetchBorns", (args) => {
-        let p = axios.get("https://opendata.reseaux-energies.fr/api/records/1.0/search/?dataset=bornes-irve&q=&facet=region&rows=500");
+        let p = axios.get("https://opendata.reseaux-energies.fr/api/records/1.0/search/?dataset=bornes-irve&q=&sort=-dist&facet=region&rows=500" + args["geofilter"]);
         resolvePromise(p).then((val) => {
             io.emit("getBorns", val)
         })
     })
 
-    let i = 0;
     socket.on("fetchAdresses", (args) => {
         let query = args['value'].replaceAll(' ', '+');
         let p = axios.get("https://api-adresse.data.gouv.fr/search/?q=" + query +"&limit=5");
         let id = args['id'];
         resolvePromise(p).then((val) => {
-            // console.log(val);
             io.emit("getAdresses", {val, id})
+        })
+    })
+    
+    socket.on("fetchLatLon", (args) => {
+        let p = axios.get("https://api-adresse.data.gouv.fr/reverse/?lon="+args['lon']+"&lat="+args['lat']+"&type=street");
+        resolvePromise(p).then((val) => {
+            let isStart = args['isStart'];
+            io.emit("getLatLon", {val, isStart:isStart})
         })
     })
 
