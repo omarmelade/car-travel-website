@@ -1,0 +1,118 @@
+const express = require('express');
+const app = express();
+const http = require('http');
+const server = http.createServer(app);
+const { Server } = require("socket.io");
+const io = new Server(server);
+const axios = require('axios');
+const dotenv = require('dotenv');
+dotenv.config();
+
+app.use(express.static('public'));
+
+
+/// ---------  SOAP api request 
+const soap = require('soap');
+const url = 'https://soap-py-db.herokuapp.com/?wsdl';
+
+function getList() {
+    var args = {}
+
+    const promise = new Promise((resolve, reject) => {
+        soap.createClient(url, function (err, client) {
+            client.list_cars(args, function (err, result) {
+                resolve(result);
+            });
+        });
+    });
+
+    return promise
+}
+
+
+const fetchTravelTime = async (cap, cons, nbkm, v) => {
+    try {
+        return await axios.get('http://localhost:8088' + '/calc/' + cap + '/cons/' + cons + '/nbkm/' + nbkm + '/v/' + v);
+    } catch (error) {
+        console.error(error)
+    }
+}
+
+const resolvePromise = async (p) => {
+
+    const dataPromise = p.then(response => {
+        return response.data;
+    })
+        .catch(error => {
+            console.log(error)
+        })
+    return dataPromise;
+}
+
+
+
+app.get('/', (req, res) => {
+
+    res.sendFile(__dirname + '/index.html');
+});
+
+
+io.on('connection', (socket) => {
+    io.emit('hello', "world");
+
+
+    // Travel time data
+    socket.on("fetchTravelTime", (args) => {
+        let p = fetchTravelTime(args['cap'], args['cons'], args['nbkm'], args['v'])
+
+        resolvePromise(p).then((val) => {
+            io.emit("getTravelTime", val);
+        })
+    })
+
+    // Cars Data
+    getList()
+        .then(value => {
+            value = JSON.parse(value['list_carsResult']);
+            io.emit('getCarsData', value);
+        })
+
+    socket.on("fetchCarData", (args) => {
+        let listcars = getList();
+        const id = args;
+
+        listcars.then(value => {
+            value = JSON.parse(value['list_carsResult']);
+            io.emit("getCarData", value[id]);
+        })
+    })
+    
+
+    // Borns
+    socket.on("fetchBorns", (args) => {
+        let p = axios.get("https://opendata.reseaux-energies.fr/api/records/1.0/search/?dataset=bornes-irve&q=&facet=region&rows=500");
+        resolvePromise(p).then((val) => {
+            io.emit("getBorns", val)
+        })
+    })
+
+    let i = 0;
+    socket.on("fetchAdresses", (args) => {
+        let query = args['value'].replaceAll(' ', '+');
+        let p = axios.get("https://api-adresse.data.gouv.fr/search/?q=" + query +"&limit=5");
+        let id = args['id'];
+        resolvePromise(p).then((val) => {
+            // console.log(val);
+            io.emit("getAdresses", {val, id})
+        })
+    })
+
+});
+
+
+
+
+
+server.listen(3000, () => {
+    console.log('listening on *:3000');
+});
