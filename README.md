@@ -1,6 +1,6 @@
 # Travel selector
 
-Projet du module d'application réparties
+Projet du module **Architectures orientées services**
 
 Vous pouvez trouvez les differentes api utilisées ici : 
 - API De calcul de l'autonomie : [autonomous-API](https://autonomous-api.herokuapp.com/)
