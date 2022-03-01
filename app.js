@@ -10,6 +10,7 @@ dotenv.config();
 
 app.use(express.static('public'));
 
+const port = process.env.PORT || 3000;
 
 /// ---------  SOAP api request 
 const soap = require('soap');
@@ -32,7 +33,7 @@ function getList() {
 
 const fetchTravelTime = async (cap, cons, nbkm, v) => {
     try {
-        return await axios.get('http://localhost:8088' + '/calc/' + cap + '/cons/' + cons + '/nbkm/' + nbkm + '/v/' + v);
+        return await axios.get('https://autonomous-api.herokuapp.com/' + '/calc/' + cap + '/cons/' + cons + '/nbkm/' + nbkm + '/v/' + v);
     } catch (error) {
         console.error(error)
     }
@@ -116,6 +117,6 @@ io.on('connection', (socket) => {
 });
 
 
-server.listen(3000, () => {
+server.listen(port, () => {
     console.log('listening on *:3000');
 });
