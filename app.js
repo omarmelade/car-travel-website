@@ -15,7 +15,7 @@ app.use((req, res, next) => {
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
     next();
   });
-  
+
 app.use(express.static('public'));
 
 const port = process.env.PORT || 3000;
@@ -90,7 +90,7 @@ io.on('connection', (socket) => {
     socket.on("fetchCarData", (args) => {
         let listcars = getList();
         const id = args;
-
+        console.log("dataaa", args);
         listcars.then(value => {
             value = JSON.parse(value['list_carsResult']);
             io.emit("getCarData", value[id]);
