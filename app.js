@@ -63,9 +63,10 @@ io.on('connection', (socket) => {
 
     // Travel time data
     socket.on("fetchTravelTime", (args) => {
+        
         let p = fetchTravelTime(args['cap'], args['cons'], args['nbkm'], args['v'])
-
         resolvePromise(p).then((val) => {
+            console.log("hello");
             io.emit("getTravelTime", val);
         })
     })
@@ -87,7 +88,6 @@ io.on('connection', (socket) => {
         })
     })
     
-
     // Borns
     socket.on("fetchBorns", (args) => {
         let p = axios.get("https://opendata.reseaux-energies.fr/api/records/1.0/search/?dataset=bornes-irve&q=&sort=-dist&facet=region&rows=500" + args["geofilter"]);
@@ -114,9 +114,6 @@ io.on('connection', (socket) => {
     })
 
 });
-
-
-
 
 
 server.listen(3000, () => {
